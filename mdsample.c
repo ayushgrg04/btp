@@ -67,7 +67,7 @@ struct dresPacket{ //You can put this structure declaration in an archive called
  
   int msgtype; //message type is 3
   int label; 
-  long long ctime;  // value of x ().
+  unsigned long ctime;  // value of x ().
  
 };
 
@@ -85,15 +85,14 @@ unsigned long sync_sending_time;
 unsigned long startingtime;
 struct dresPacket dresmsg;
 struct tempsendingPacket tsmsg;
-int tt1=0;
-struct SDreqPacket msg1;
+
 
 
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
     
-    unsigned long dreq_receiving_time = (unsigned long)clock_seconds();
+    unsigned long dreq_receiving_time = (unsigned long)clock_time();
     printf("receiving time of dreq at master: %lu\n", dreq_receiving_time);
   struct SDreqPacket *tmpMsg = (struct SDreqPacket*)packetbuf_dataptr();
   printf("broadcast dreqPacket received from %d.%d: '%d' '%d' \n",
@@ -103,19 +102,15 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
       printf("case 1\n");
       dresmsg.msgtype = 3; // sending Dresponse SDreqPacket after every 50 sec.
       dresmsg.label = label; // To save the temperature in the struct envir
-      dresmsg.ctime = -((long long)sync_sending_time+(long long)dreq_receiving_time);
+      dresmsg.ctime = sync_sending_time+dreq_receiving_time;
       tsmsg.pkt = dresmsg;
       tsmsg.addr = *from;
        printf("message details case 1:'%d' '%d' \n",
           dresmsg.msgtype, dresmsg.label);
-          printf("message details case 1 tsmsg: '%d' '%d' '%lld' %d.%d\n",
+          printf("message details case 1 tsmsg: '%d' '%d' '%lu' %d.%d\n",
           (tsmsg.pkt).msgtype, (tsmsg.pkt).label, (tsmsg.pkt).ctime, (tsmsg.addr).u8[0], (tsmsg.addr).u8[1]);
       process_post(&example_unicast_process, PROCESS_EVENT_CONTINUE , &(tsmsg) );
-
       // printf("starting time of label 1: %lu \n", startingtime);
-  }
-  else{
-    printf("msg type not matched\n");
   }
 
 }
@@ -143,22 +138,17 @@ struct rtimer rt;
 PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature and light values
 {
   // clock_init();
-  if(tt1==0){
-    clock_set_seconds(500);
-    tt1++;  
-  }
-    
-  startingtime = (unsigned long)clock_seconds();
+  clock_set_seconds(500);   
+  startingtime = (unsigned long)clock_time();
   printf("starting time of master clock: %lu \n", startingtime);
-  printf("node rime address: %d.%d", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
   static struct etimer et; // Struct used for the timer
-  start_time = clock_seconds();
+  start_time = clock_time();
 
   PROCESS_BEGIN();  // Says where the process starts 
    
   while(1){
    
-  etimer_set(&et, CLOCK_SECOND * 50); // Configure timer to expire in 40 seconds
+  etimer_set(&et, CLOCK_SECOND * 40); // Configure timer to expire in 40 seconds
   
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et)); // Wait until timer expires 
   
@@ -244,7 +234,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data) // Process for sending a uni
     packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
     //   // packetbuf_copyfrom("Hello", 6);    
     broadcast_send(&broadcast);
-    sync_sending_time = (unsigned long)clock_seconds();
+    sync_sending_time = (unsigned long)clock_time();
     printf("broadcast SDreqPacket sent\n");
     printf("syncsending Time is: %lu \n", sync_sending_time);
     

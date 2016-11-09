@@ -67,14 +67,14 @@ struct dresPacket{ //You can put this structure declaration in an archive called
  
   int msgtype; //message type is 3
   int label; 
-  long long ctime;  // value of x ().
+  unsigned long ctime;  // value of x ().
  
 };
 
 
 struct tempsendingPacket{ //You can put this structure declaration in an archive called example-uni-temp.h
-  linkaddr_t addr;
-  struct dresPacket pkt;
+	linkaddr_t addr;
+	struct dresPacket pkt;
   
 };
  
@@ -85,35 +85,33 @@ unsigned long sync_sending_time;
 unsigned long startingtime;
 struct dresPacket dresmsg;
 struct tempsendingPacket tsmsg;
-int tt1=0;
-struct SDreqPacket msg1;
+
 
 
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
-    
-    unsigned long dreq_receiving_time = (unsigned long)clock_seconds();
-    printf("receiving time of dreq at master: %lu\n", dreq_receiving_time);
-  struct SDreqPacket *tmpMsg = (struct SDreqPacket*)packetbuf_dataptr();
-  printf("broadcast dreqPacket received from %d.%d: '%d' '%d' \n",
-         from->u8[0], from->u8[1], tmpMsg->msgtype, tmpMsg->label);
+  	
+  	unsigned long dreq_receiving_time = (unsigned long)clock_seconds();
+  	printf("receiving time of dreq at master: %lu\n", dreq_receiving_time);
+	struct SDreqPacket *tmpMsg = (struct SDreqPacket*)packetbuf_dataptr();
+	printf("broadcast dreqPacket received from %d.%d: '%d' '%d' \n",
+	       from->u8[0], from->u8[1], tmpMsg->msgtype, tmpMsg->label);
 
-  if(tmpMsg->msgtype == 2 && tmpMsg->label == label+1 && linkaddr_cmp(&(tmpMsg->addr), &linkaddr_node_addr)){
-      printf("case 1\n");
-      dresmsg.msgtype = 3; // sending Dresponse SDreqPacket after every 50 sec.
-      dresmsg.label = label; // To save the temperature in the struct envir
-      dresmsg.ctime = -((long long)sync_sending_time+(long long)dreq_receiving_time);
-      tsmsg.pkt = dresmsg;
-      tsmsg.addr = *from;
-       printf("message details case 1:'%d' '%d' \n",
+	if(tmpMsg->msgtype == 2 && tmpMsg->label == label+1 && linkaddr_cmp(&(tmpMsg->addr), &linkaddr_node_addr)){
+	    printf("case 1\n");
+	    dresmsg.msgtype = 3; // sending Dresponse SDreqPacket after every 50 sec.
+	    dresmsg.label = label; // To save the temperature in the struct envir
+	    dresmsg.ctime = sync_sending_time+dreq_receiving_time;
+	    tsmsg.pkt = dresmsg;
+	    tsmsg.addr = *from;
+	     printf("message details case 1:'%d' '%d' \n",
           dresmsg.msgtype, dresmsg.label);
-          printf("message details case 1 tsmsg: '%d' '%d' '%lld' %d.%d\n",
+          printf("message details case 1 tsmsg: '%d' '%d' '%lu' %d.%d\n",
           (tsmsg.pkt).msgtype, (tsmsg.pkt).label, (tsmsg.pkt).ctime, (tsmsg.addr).u8[0], (tsmsg.addr).u8[1]);
-      process_post(&example_unicast_process, PROCESS_EVENT_CONTINUE , &(tsmsg) );
-
-      // printf("starting time of label 1: %lu \n", startingtime);
-  }
+	    process_post(&example_unicast_process, PROCESS_EVENT_CONTINUE , &(tsmsg) );
+	    // printf("starting time of label 1: %lu \n", startingtime);
+	}
   else{
     printf("msg type not matched\n");
   }
@@ -143,11 +141,7 @@ struct rtimer rt;
 PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature and light values
 {
   // clock_init();
-  if(tt1==0){
-    clock_set_seconds(500);
-    tt1++;  
-  }
-    
+  clock_set_seconds(500); 	
   startingtime = (unsigned long)clock_seconds();
   printf("starting time of master clock: %lu \n", startingtime);
   printf("node rime address: %d.%d", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
@@ -158,7 +152,7 @@ PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature a
    
   while(1){
    
-  etimer_set(&et, CLOCK_SECOND * 50); // Configure timer to expire in 40 seconds
+  etimer_set(&et, CLOCK_SECOND * 40); // Configure timer to expire in 40 seconds
   
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et)); // Wait until timer expires 
   
@@ -199,7 +193,7 @@ PROCESS_THREAD(example_unicast_process, ev, data) // Process for sending a unica
  
     struct tempsendingPacket *tsMsg =  data; //Saves the information that comes from the other process (read_temperature_light) into a structure pointer called *envirRX
  
-  struct dresPacket *tmpMsg = &(tsMsg->pkt);
+ 	struct dresPacket *tmpMsg = &(tsMsg->pkt);
     printf("Data\t"); // Print the string "Data"
     printf("%d\t", tmpMsg->msgtype );  // Print the sequence number
     printf("%d\t", tmpMsg->label ); // Print the temperature value
