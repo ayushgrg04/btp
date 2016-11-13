@@ -47,7 +47,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Broadcast example");
 PROCESS(example_unicast_process, "Example unicast"); // Process for sending a unicast Message
@@ -61,7 +60,8 @@ int label = 1;
 struct SDreqPacket{ //You can put this structure declaration in an archive called example-uni-temp.h
  
   int msgtype; //message type is 1
-  int label; 
+  int label;
+  char msg[5]; 
   linkaddr_t addr;
 };
 
@@ -160,7 +160,7 @@ PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature a
    
   while(1){
    
-  etimer_set(&et, CLOCK_SECOND * 10); // Configure timer to expire in 40 seconds
+  etimer_set(&et, CLOCK_SECOND * 50); // Configure timer to expire in 40 seconds
   
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et)); // Wait until timer expires 
   
@@ -168,9 +168,8 @@ PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature a
   
   synMsg.msgtype = 1; // sending syn SDreqPacket after every 40 sec.
   synMsg.label = label; // with label = node label
-  (synMsg.addr).u8[0] = 1;
-  (synMsg.addr).u8[1] = 0;
   // synMsg.msg = "hel";
+  strcpy(synMsg.msg, "hel");
   process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(synMsg) ); // This function posts an asynchronous event to the process example_unicast_process with the information of the structure called envir
   
   etimer_reset(&et); // Reset timer
@@ -208,13 +207,9 @@ PROCESS_THREAD(example_unicast_process, ev, data) // Process for sending a unica
     printf("%d\t", tmpMsg->msgtype );  // Print the sequence number
     printf("%d\t", tmpMsg->label ); // Print the temperature value
    
-
-    char str[50];
-    sprintf(str, "%d#%d#%lld", tmpMsg->msgtype, tmpMsg->label, tmpMsg->ctime);
     // struct dresPacket *tmpMsg = data;
-    // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
- 	printf("str %s", str);
- 	packetbuf_copyfrom(str, 50);
+    packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
+ 
     // addr.u8[0] = 2; //This is the sink's address
     // addr.u8[1] = 0; //This is the sink's address
     if(!linkaddr_cmp(&(tsMsg->addr), &linkaddr_node_addr)) { //if the address is diferent from the current's node
@@ -244,34 +239,30 @@ PROCESS_THREAD(example_broadcast_process, ev, data) // Process for sending a uni
 	// packetbuf_clear(); 
 	// tmpMsg = (struct SDreqPacket *) packetbuf_dataptr();
 	// packetbuf_set_datalen(sizeof(struct SDreqPacket));
-	tmpMsg->msgtype = ((struct SDreqPacket *)data)->msgtype;
-	tmpMsg->label = ((struct SDreqPacket *)data)->label;
-	// (tmpMsg->addr).u8[0] = (((struct SDreqPacket *)data)->addr).u8[0];
-	// (tmpMsg->addr).u8[1] = (((struct SDreqPacket *)data)->addr).u8[1];
+	// tmpMsg->msgtype = ((struct SDreqPacket *)data)->msgtype;
+	// tmpMsg->label = ((struct SDreqPacket *)data)->label;
 	// tmpMsg->msg = ((struct SDreqPacket *)data)->msg;
-	// printf("address %d\t", (tmpMsg->addr).u8[0],  (tmpMsg->addr).u8[1]);
+
 	// strcpy(tmpMsg->msg, ((struct SDreqPacket *)data)->msg);
-    char str[15];
+    char tM[15];
     // packetbuf_clear(); 
     // tM = (char[]) packetbuf_dataptr();
-    sprintf(str, "%d#%d", tmpMsg->msgtype, tmpMsg->label);
-	// memcpy(tM, &(tmpMsg->msgtype), sizeof(tmpMsg->msgtype));
-	printf("str %s", str);
+	strcpy(tM, "hello ayush");
 	// packetbuf_set_datalen(sizeof(tM));
-    // strcpy(tM, "hello ayush");
-packetbuf_copyfrom(str, 15);
+    
+
 
     printf("Data\t"); // Print the string "Data"
     printf("SDreqPacket type %d\t", tmpMsg->msgtype );  // Print the msgtype number
     printf("label %d\t", tmpMsg->label ); // Print the label value
-    // printf("msg %s\t", ((struct SDreqPacket *) packetbuf_dataptr())->msg );
-    printf("size %d\t", sizeof(tmpMsg->msgtype));
+    printf("msg %s\t", ((struct SDreqPacket *) packetbuf_dataptr())->msg );
+    printf("size %d\t", sizeof(tM));
 
     printf("Clock Time Event Recorded\n");
     // rtimer_set(&rt, RTIMER_NOW()+RTIMER_ARCH_SECOND,1,myfunctn,tmpMsg);
     // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
     //   // packetbuf_copyfrom("Hello", 6); 
-	
+	packetbuf_copyfrom(tM, 15);
 
 
     broadcast_send(&broadcast);

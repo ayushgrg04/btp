@@ -1,5 +1,4 @@
-
- /* Copyright (c) 2007, Swedish Institute of Computer Science.
+/* Copyright (c) 2007, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +46,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Broadcast example");
 PROCESS(example_unicast_process, "Example unicast"); // Process for sending a unicast message
@@ -60,8 +60,7 @@ int label  = 2;
 struct SDreqPacket{ //You can put this structure declaration in an archive called example-uni-temp.h
  
   int msgtype; //message type is 1
-  int label;
-  char *msg; 
+  int label; 
   linkaddr_t addr;
 };
 
@@ -103,7 +102,6 @@ struct SDreqPacket msg1;
 long long offset;
 unsigned long startingtime;
 int tt1=0;
-
 struct bufer bufferarray[50];
 
 static void
@@ -112,10 +110,19 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   
   unsigned long rec_time = (unsigned long)clock_seconds();
   printf("receiving time for dreq at slave: %lu \n", rec_time);
-  struct SDreqPacket *tmpMsg;
-  int *tM = (int *)packetbuf_dataptr();
-  printf("broadcast message received from %d.%d: '%s'\n",
-         from->u8[0], from->u8[1], tM);
+
+   char *tempstr = (char *)packetbuf_dataptr();
+    printf("string is %s", tempstr);
+  struct SDreqPacket *tmpMsg = (struct SDreqPacket *)malloc(sizeof(struct SDreqPacket));
+  tmpMsg->msgtype = atoi(strtok(tempstr, "#"));
+  tmpMsg->label = atoi(strtok(NULL, "#"));
+  if(tmpMsg->msgtype==2){
+    (tmpMsg->addr).u8[0] = atoi(strtok(NULL, "#"));
+    (tmpMsg->addr).u8[1] = atoi(strtok(NULL, "#"));   
+  }
+    
+  printf("broadcast message received from %d.%d: '%d' '%d' \n",
+         from->u8[0], from->u8[1], tmpMsg->msgtype, tmpMsg->label);
 
   if(isdreqforsyncrecv==0 && tmpMsg->msgtype==1 && tmpMsg->label==label-1){    // for receiving sync message.
     printf("case 1\n");       // when sync message is received from master
@@ -189,7 +196,15 @@ static void
 recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 {
   
-  struct dresPacket *tmpMsg = (struct dresPacket*)packetbuf_dataptr();
+  char *tempstr = (char *)packetbuf_dataptr();
+    printf("string is %s", tempstr);
+  struct dresPacket *tmpMsg = (struct dresPacket*)malloc(sizeof(struct dresPacket));
+  tmpMsg->msgtype = atoi(strtok(tempstr, "#"));
+  tmpMsg->label = atoi(strtok(NULL, "#"));
+  tmpMsg->ctime = (long long)(atol(strtok(NULL, "#")));
+
+
+  // struct dresPacket *tmpMsg = (struct dresPacket*)packetbuf_dataptr();
   printf("unicast message received from %d.%d '%d' '%d' '%lld'\n",
     from->u8[0], from->u8[1], tmpMsg->msgtype, tmpMsg->label, tmpMsg->ctime );
   x = tmpMsg->ctime;
@@ -291,13 +306,19 @@ PROCESS_THREAD(example_unicast_process, ev, data) // Process for sending a unica
     printf("%d\t", tmpMsg->msgtype );  // Print the sequence number
     printf("%d\t", tmpMsg->label ); // Print the temperature value
     
-    packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
+    // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
  
+     char str[50];
+    sprintf(str, "%d#%d#%lld", tmpMsg->msgtype, tmpMsg->label, tmpMsg->ctime);
+    // struct dresPacket *tmpMsg = data;
+    // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
+  printf("str %s", str);
+  packetbuf_copyfrom(str, 50);
+
     // addr.u8[0] = 2; //This is the sink's address
     // addr.u8[1] = 0; //This is the sink's address
     if(!linkaddr_cmp(&(tsMsg->addr), &linkaddr_node_addr)) { //if the address is diferent from the current's node
       unicast_send(&uc, &(tsMsg->addr)); //Send a unicast SDreqPacket to the sink
-    printf("unicast message sent\n");
     }
  
   }
@@ -327,9 +348,15 @@ PROCESS_THREAD(example_broadcast_process, ev, data) // Process for sending a uni
       printf("Data\t"); // Print the string "Data"
       printf("message type %d\t", tmpMsg->msgtype );  // Print the msgtype number
       printf("label %d\t", tmpMsg->label ); // Print the label value
-      packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
+      // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
         // packetbuf_copyfrom("Hello", 6);
-       
+       char str[50];
+      sprintf(str, "%d#%d#%d#%d", tmpMsg->msgtype, tmpMsg->label, (tmpMsg->addr).u8[0], (tmpMsg->addr).u8[1]);
+      printf("str %s", str);
+      packetbuf_copyfrom(str, 50);
+
+
+
         printf("Clock Time Event Recorded\n");
         broadcast_send(&broadcast);
         dreq_sending_time = (unsigned long)clock_seconds();

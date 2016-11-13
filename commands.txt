@@ -1,0 +1,4 @@
+ls /dev/ttyU*
+make TARGET=sky slave
+make TARGET=sky modifiedptp
+sudo make modifiedptp.upload TARGET=sky MOTES=/dev/ttyUSB3 login

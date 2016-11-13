@@ -141,16 +141,16 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
           tsmsg.addr = *from;
           process_post(&example_unicast_process, PROCESS_EVENT_CONTINUE , &(tsmsg) );
           
-          msg1.msgtype = 0; // sending syn message after every 50 sec.
-  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
+  //         msg1.msgtype = 0; // sending syn message after every 50 sec.
+  // process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
       }
       else{
           printf("case 3\n");
           islistempty++;
           bufferarray[islistempty].rtime = rec_time;
           bufferarray[islistempty].addr = *from;
- msg1.msgtype = 0; // sending syn message after every 50 sec.
-  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
+ // msg1.msgtype = 0; // sending syn message after every 50 sec.
+ //  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
       }
   }
   else if(isdreqforsyncrecv==0 && tmpMsg->msgtype==2 && tmpMsg->label==label-1){    // for receiving dreq message from prev label.
@@ -205,9 +205,9 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
     islistempty--;
   }
 
-  msg1.msgtype = 0; // sending syn message after every 50 sec.
+  // msg1.msgtype = 0; // sending syn message after every 50 sec.
  
-  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
+  // process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
 }
 
 
@@ -293,6 +293,7 @@ PROCESS_THREAD(example_unicast_process, ev, data) // Process for sending a unica
     // addr.u8[1] = 0; //This is the sink's address
     if(!linkaddr_cmp(&(tsMsg->addr), &linkaddr_node_addr)) { //if the address is diferent from the current's node
       unicast_send(&uc, &(tsMsg->addr)); //Send a unicast SDreqPacket to the sink
+    printf("unicast message sent\n");
     }
  
   }

@@ -46,7 +46,6 @@
 #include "dev/leds.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Broadcast example");
 PROCESS(example_unicast_process, "Example unicast"); // Process for sending a unicast message
@@ -113,7 +112,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   unsigned long rec_time = (unsigned long)clock_seconds();
   printf("receiving time for dreq at slave: %lu \n", rec_time);
   struct SDreqPacket *tmpMsg;
-  int *tM = (int *)packetbuf_dataptr();
+  char *tM = (char *)packetbuf_dataptr();
   printf("broadcast message received from %d.%d: '%s'\n",
          from->u8[0], from->u8[1], tM);
 

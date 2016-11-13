@@ -46,8 +46,8 @@
 #include "dev/leds.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h> 
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Broadcast example");
 PROCESS(example_unicast_process, "Example unicast"); // Process for sending a unicast Message
@@ -97,7 +97,18 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
     
     unsigned long dreq_receiving_time = (unsigned long)clock_seconds();
     printf("receiving time of dreq at master: %lu\n", dreq_receiving_time);
-  struct SDreqPacket *tmpMsg = (struct SDreqPacket*)packetbuf_dataptr();
+
+    char *tempstr = (char *)packetbuf_dataptr();
+    printf("string is %s", tempstr);
+  struct SDreqPacket *tmpMsg = (struct SDreqPacket *)malloc(sizeof(struct SDreqPacket));
+  tmpMsg->msgtype = atoi(strtok(tempstr, "#"));
+  tmpMsg->label = atoi(strtok(NULL, "#"));
+  if(tmpMsg->msgtype==2){
+    (tmpMsg->addr).u8[0] = atoi(strtok(NULL, "#"));
+    (tmpMsg->addr).u8[1] = atoi(strtok(NULL, "#"));   
+  }
+    
+
   printf("broadcast dreqPacket received from %d.%d: '%d' '%d' \n",
          from->u8[0], from->u8[1], tmpMsg->msgtype, tmpMsg->label);
 
@@ -160,7 +171,7 @@ PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature a
    
   while(1){
    
-  etimer_set(&et, CLOCK_SECOND * 10); // Configure timer to expire in 40 seconds
+  etimer_set(&et, CLOCK_SECOND * 50); // Configure timer to expire in 40 seconds
   
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et)); // Wait until timer expires 
   
@@ -168,9 +179,7 @@ PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature a
   
   synMsg.msgtype = 1; // sending syn SDreqPacket after every 40 sec.
   synMsg.label = label; // with label = node label
-  (synMsg.addr).u8[0] = 1;
-  (synMsg.addr).u8[1] = 0;
-  // synMsg.msg = "hel";
+
   process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(synMsg) ); // This function posts an asynchronous event to the process example_unicast_process with the information of the structure called envir
   
   etimer_reset(&et); // Reset timer
@@ -207,14 +216,17 @@ PROCESS_THREAD(example_unicast_process, ev, data) // Process for sending a unica
     printf("Data\t"); // Print the string "Data"
     printf("%d\t", tmpMsg->msgtype );  // Print the sequence number
     printf("%d\t", tmpMsg->label ); // Print the temperature value
-   
-
+    
+    // struct dresPacket *tmpMsg = data;
+    // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
+ 
     char str[50];
     sprintf(str, "%d#%d#%lld", tmpMsg->msgtype, tmpMsg->label, tmpMsg->ctime);
     // struct dresPacket *tmpMsg = data;
     // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
- 	printf("str %s", str);
- 	packetbuf_copyfrom(str, 50);
+  printf("str %s", str);
+  packetbuf_copyfrom(str, 50);
+
     // addr.u8[0] = 2; //This is the sink's address
     // addr.u8[1] = 0; //This is the sink's address
     if(!linkaddr_cmp(&(tsMsg->addr), &linkaddr_node_addr)) { //if the address is diferent from the current's node
@@ -240,40 +252,28 @@ PROCESS_THREAD(example_broadcast_process, ev, data) // Process for sending a uni
     /* Delay 2-4 seconds */
    PROCESS_WAIT_EVENT(); //Wait for an event to be posted to the process. 
  
-    struct SDreqPacket *tmpMsg; //Saves the information that comes from the other process (read_temperature_light) into a structure pointer called *envirRX
-	// packetbuf_clear(); 
-	// tmpMsg = (struct SDreqPacket *) packetbuf_dataptr();
-	// packetbuf_set_datalen(sizeof(struct SDreqPacket));
-	tmpMsg->msgtype = ((struct SDreqPacket *)data)->msgtype;
-	tmpMsg->label = ((struct SDreqPacket *)data)->label;
-	// (tmpMsg->addr).u8[0] = (((struct SDreqPacket *)data)->addr).u8[0];
-	// (tmpMsg->addr).u8[1] = (((struct SDreqPacket *)data)->addr).u8[1];
-	// tmpMsg->msg = ((struct SDreqPacket *)data)->msg;
-	// printf("address %d\t", (tmpMsg->addr).u8[0],  (tmpMsg->addr).u8[1]);
-	// strcpy(tmpMsg->msg, ((struct SDreqPacket *)data)->msg);
-    char str[15];
-    // packetbuf_clear(); 
-    // tM = (char[]) packetbuf_dataptr();
-    sprintf(str, "%d#%d", tmpMsg->msgtype, tmpMsg->label);
-	// memcpy(tM, &(tmpMsg->msgtype), sizeof(tmpMsg->msgtype));
-	printf("str %s", str);
-	// packetbuf_set_datalen(sizeof(tM));
-    // strcpy(tM, "hello ayush");
-packetbuf_copyfrom(str, 15);
-
+    struct SDreqPacket *tmpMsg =  data; //Saves the information that comes from the other process (read_temperature_light) into a structure pointer called *envirRX
+ 
+ 
     printf("Data\t"); // Print the string "Data"
     printf("SDreqPacket type %d\t", tmpMsg->msgtype );  // Print the msgtype number
     printf("label %d\t", tmpMsg->label ); // Print the label value
-    // printf("msg %s\t", ((struct SDreqPacket *) packetbuf_dataptr())->msg );
-    printf("size %d\t", sizeof(tmpMsg->msgtype));
-
+    if(tmpMsg->msgtype==1){
+      char str[15];
+      sprintf(str, "%d#%d", tmpMsg->msgtype, tmpMsg->label);
+      printf("str %s", str);
+      packetbuf_copyfrom(str, 15);
+    }
+    else{
+      char str[50];
+      sprintf(str, "%d#%d#%d#%d", tmpMsg->msgtype, tmpMsg->label, (tmpMsg->addr).u8[0], (tmpMsg->addr).u8[1]);
+      printf("str %s", str);
+      packetbuf_copyfrom(str, 50);
+    }
     printf("Clock Time Event Recorded\n");
     // rtimer_set(&rt, RTIMER_NOW()+RTIMER_ARCH_SECOND,1,myfunctn,tmpMsg);
     // packetbuf_copyfrom(  tmpMsg , sizeof(  (*tmpMsg)  ) ); 
-    //   // packetbuf_copyfrom("Hello", 6); 
-	
-
-
+    //   // packetbuf_copyfrom("Hello", 6);    
     broadcast_send(&broadcast);
     sync_sending_time = (unsigned long)clock_seconds();
     printf("broadcast SDreqPacket sent\n");

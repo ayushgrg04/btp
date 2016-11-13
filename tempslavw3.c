@@ -46,7 +46,6 @@
 #include "dev/leds.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Broadcast example");
 PROCESS(example_unicast_process, "Example unicast"); // Process for sending a unicast message
@@ -54,14 +53,13 @@ PROCESS(modified_ptp, "Modified PTP");
 AUTOSTART_PROCESSES(&example_broadcast_process, &example_unicast_process, &modified_ptp);
 /*---------------------------------------------------------------------------*/
 
-int label  = 2;
+int label  = 3;
 
 
 struct SDreqPacket{ //You can put this structure declaration in an archive called example-uni-temp.h
  
   int msgtype; //message type is 1
-  int label;
-  char *msg; 
+  int label; 
   linkaddr_t addr;
 };
 
@@ -103,7 +101,6 @@ struct SDreqPacket msg1;
 long long offset;
 unsigned long startingtime;
 int tt1=0;
-
 struct bufer bufferarray[50];
 
 static void
@@ -112,10 +109,9 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   
   unsigned long rec_time = (unsigned long)clock_seconds();
   printf("receiving time for dreq at slave: %lu \n", rec_time);
-  struct SDreqPacket *tmpMsg;
-  int *tM = (int *)packetbuf_dataptr();
-  printf("broadcast message received from %d.%d: '%s'\n",
-         from->u8[0], from->u8[1], tM);
+  struct SDreqPacket *tmpMsg = (struct SDreqPacket*)packetbuf_dataptr();
+  printf("broadcast message received from %d.%d: '%d' '%d' \n",
+         from->u8[0], from->u8[1], tmpMsg->msgtype, tmpMsg->label);
 
   if(isdreqforsyncrecv==0 && tmpMsg->msgtype==1 && tmpMsg->label==label-1){    // for receiving sync message.
     printf("case 1\n");       // when sync message is received from master
@@ -144,17 +140,17 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
           tsmsg.pkt = send_dres;
           tsmsg.addr = *from;
           process_post(&example_unicast_process, PROCESS_EVENT_CONTINUE , &(tsmsg) );
-           
-  //         msg1.msgtype = 0; // sending syn message after every 50 sec.
-  // process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
+          
+          msg1.msgtype = 0; // sending syn message after every 50 sec.
+  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
       }
       else{
           printf("case 3\n");
           islistempty++;
           bufferarray[islistempty].rtime = rec_time;
           bufferarray[islistempty].addr = *from;
- // msg1.msgtype = 0; // sending syn message after every 50 sec.
- //  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
+ msg1.msgtype = 0; // sending syn message after every 50 sec.
+  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
       }
   }
   else if(isdreqforsyncrecv==0 && tmpMsg->msgtype==2 && tmpMsg->label==label-1){    // for receiving dreq message from prev label.
@@ -208,10 +204,10 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
     process_post(&example_unicast_process, PROCESS_EVENT_CONTINUE , &(tsmsg) );
     islistempty--;
   }
-  // msg1.msgtype = 0; // sending syn message after every 50 sec.
- 
-  // process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
 
+  msg1.msgtype = 0; // sending syn message after every 50 sec.
+ 
+  process_post(&example_broadcast_process, PROCESS_EVENT_CONTINUE , &(msg1) );
 }
 
 
@@ -230,9 +226,9 @@ PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature a
 {
   // clock_init();
   if(tt1==0){
-    clock_set_seconds(2000);
+    clock_set_seconds(5000);
     tt1++;  
-  }  
+  } 
   startingtime = (unsigned long)clock_seconds();
   printf("starting time of slave clock: %lu \n", startingtime);
   printf("node rime address: %d.%d", linkaddr_node_addr.u8[0], linkaddr_node_addr.u8[1]);
@@ -243,7 +239,7 @@ PROCESS_THREAD(modified_ptp, ev, data)  // Process for reading the temperature a
    
   while(1){
    
-  etimer_set(&et, CLOCK_SECOND * 45); // Configure timer to expire in 5 seconds
+  etimer_set(&et, CLOCK_SECOND * 40); // Configure timer to expire in 5 seconds
   
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et)); // Wait until timer expires 
   
@@ -297,7 +293,6 @@ PROCESS_THREAD(example_unicast_process, ev, data) // Process for sending a unica
     // addr.u8[1] = 0; //This is the sink's address
     if(!linkaddr_cmp(&(tsMsg->addr), &linkaddr_node_addr)) { //if the address is diferent from the current's node
       unicast_send(&uc, &(tsMsg->addr)); //Send a unicast SDreqPacket to the sink
-    printf("unicast message sent\n");
     }
  
   }
